@@ -57,8 +57,6 @@
 
     <script>
         // --- PART 1: POWER-UP INITIALIZATION ---
-        // 這部分程式碼會在 Trello 背景載入，告訴 Trello 這個 Power-Up 有哪些功能。
-
         var CLOCK_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2xvY2siPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48cG9seWxpbmUgcG9pbnRzPSIxMiA2IDEyIDEyIDE2IDE0Ij48L3BvbHlsaW5lPjwvc3ZnPg==';
 
         TrelloPowerUp.initialize({
@@ -102,36 +100,38 @@
             }
         });
 
-        // --- PART 2: POPUP LOGIC (修正後) ---
-        // 這部分程式碼只會在彈出視窗 (iframe) 中執行。
+        // --- PART 2: POPUP LOGIC (最終修正版) ---
         var t_iframe = TrelloPowerUp.iframe();
 
-        // 當彈出視窗載入且 Trello iframe 準備就緒時，執行所有相關設定
         t_iframe.render(function(){
-            
-            // 將事件監聽器綁定在 render 函數內，確保 t_iframe 已準備好
-            document.getElementById('saveButton').addEventListener('click', function(){
-                var hoursInput = document.getElementById('workHours').value;
-                var hours = parseFloat(hoursInput);
+            // 當彈出視窗載入且 Trello iframe 準備就緒時，執行所有相關設定
+            console.log("Power-Up popup is rendering...");
 
-                // 確保儲存的是有效的數字，否則儲存 null 來清除
-                var valueToStore = (hoursInput !== '' && !isNaN(hours) && hours >= 0) ? hours : null;
-                
-                return t_iframe.set('card', 'shared', 'workHours', valueToStore)
-                    .then(function(){
-                        // 儲存成功後關閉彈出視窗
-                        t_iframe.closePopup();
-                    });
-            });
-
-            // 自動填入已儲存的工時
+            // 1. 先從 Trello 取得已儲存的工時
             return t_iframe.get('card', 'shared', 'workHours')
                 .then(function(hours){
-                    // 使用 hours || '' 避免在輸入框中顯示 'null'
+                    console.log("Fetched existing hours:", hours);
+                    // 2. 將工時填入輸入框
                     document.getElementById('workHours').value = hours || '';
                 })
                 .then(function(){
-                    // 讓 Trello 自動調整彈出視窗的高度以符合內容
+                    // 3. ★★★ 修正點：確保 DOM 都已載入且數值已填入後，才綁定事件 ★★★
+                    console.log("DOM is ready, attaching save button listener.");
+                    document.getElementById('saveButton').addEventListener('click', function(){
+                        console.log("Save button clicked!");
+                        var hoursInput = document.getElementById('workHours').value;
+                        var hours = parseFloat(hoursInput);
+                        var valueToStore = (hoursInput !== '' && !isNaN(hours) && hours >= 0) ? hours : null;
+                        
+                        console.log("Attempting to store value:", valueToStore);
+                        return t_iframe.set('card', 'shared', 'workHours', valueToStore)
+                            .then(function(){
+                                console.log("Value stored successfully. Closing popup.");
+                                t_iframe.closePopup();
+                            });
+                    });
+
+                    // 4. 最後再調整視窗大小
                     t_iframe.sizeTo('body').done();
                 });
         });
