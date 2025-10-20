@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>Trello 標準工時 Power-Up</title>
+  <!-- 引入 Trello Power-Up 客戶端函式庫 -->
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <style>
+    /* 彈出視窗的簡單樣式 */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Noto Sans', 'Ubuntu', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 10px;
+      background-color: #F4F5F7;
+    }
+    #popup-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    input {
+      margin: 5px 0 10px 0;
+      padding: 8px;
+      border-radius: 3px;
+      border: 1px solid #ccc;
+      width: 90%;
+    }
+    button {
+      background-color: #0079BF;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #02609F;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 這個區塊是給彈出視窗使用的 -->
+  <div id="popup-content" style="display:none;">
+    <label for="hours-input">請輸入標準工時 (小時):</label>
+    <input type="number" id="hours-input" min="0" step="0.5">
+    <button id="save-btn">儲存</button>
+  </div>
+
+  <script>
+    (function() {
+      // 取得 Trello Power-Up 的 iframe 上下文物件
+      const t = TrelloPowerUp.iframe();
+      const CLOCK_ICON = 'https://cdn.glitch.global/c69415fd-f70e-4ea9-91eb-47a32194637a/time-icon.svg?v=1665432583803';
+
+      // --- 彈出視窗邏輯 ---
+      // 檢查是否在彈出視窗的上下文中 (透過 t.arg() 檢查傳入的參數)
+      if (t.arg('view') === 'popup') {
+        document.getElementById('popup-content').style.display = 'block';
+        const input = document.getElementById('hours-input');
+
+        // 當彈出視窗載入時，嘗試取得並顯示已儲存的工時
+        t.get('card', 'shared', 'stdHours').then(hours => {
+          if (hours) {
+            input.value = hours;
+          }
+        });
+
+        // 儲存按鈕的點擊事件
+        document.getElementById('save-btn').onclick = function() {
+          const newHours = input.value;
+          // 將輸入的工時儲存到卡片的 Power-Up 資料中
+          // 'shared' 表示這個資料對所有看板成員可見
+          t.set('card', 'shared', 'stdHours', newHours)
+           .then(() => {
+             // 儲存後關閉彈出視窗
+             t.closePopup();
+           });
+        }
+      }
+
+      // --- Power-Up 功能初始化 ---
+      // 只有當不是彈出視窗時，才進行初始化
+      TrelloPowerUp.initialize({
+        // 1. 卡片按鈕 (card-buttons)
+        // 在卡片背面增加一個按鈕
+        'card-buttons': function(t, options) {
+          return [{
+            icon: CLOCK_ICON,
+            text: '設定標準工時',
+            // 按鈕的回呼函式
+            callback: function(t) {
+              // 彈出一個視窗
+              return t.popup({
+                title: '設定標準工時',
+                url: './index.html', // 彈出視窗載入這個 HTML 檔案本身
+                args: { view: 'popup' }, // 傳入參數，讓我知道這是彈出視窗
+                height: 120 // 視窗高度
+              });
+            }
+          }];
+        },
+
+        // 2. 卡片徽章 (card-badges)
+        // 在卡片正面顯示資訊
+        'card-badges': function(t, options) {
+          // 取得儲存的工時
+          return t.get('card', 'shared', 'stdHours')
+            .then(function(hours) {
+              // 如果有儲存工時，且大於 0
+              if (hours && parseFloat(hours) > 0) {
+                return [{
+                  // 顯示的文字
+                  text: `標準工時: ${hours} 小時`,
+                  // 徽章顏色 (可以是 'green', 'yellow', 'red', 'blue', 等)
+                  color: 'blue'
+                }];
+              }
+              // 如果沒有工時，回傳空陣列，不顯示徽章
+              return [];
+            });
+        },
+
+        // 3. 卡片詳細徽章 (card-detail-badges)
+        // 在卡片背面 (詳細視圖) 顯示資訊，邏輯與 card-badges 相同
+        'card-detail-badges': function(t, options) {
+          return t.get('card', 'shared', 'stdHours')
+            .then(function(hours) {
+              if (hours && parseFloat(hours) > 0) {
+                return [{
+                  text: `標準工時: ${hours} 小時`,
+                  color: 'blue'
+                }];
+              }
+              return [];
+            });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
